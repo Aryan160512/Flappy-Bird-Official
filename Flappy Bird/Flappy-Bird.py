@@ -16,6 +16,9 @@ ground = pygame.transform.scale(ground, (1300, 168))
 groundX = 0
 groundSpeed = 2
 
+flying = False
+gameOver = False
+
 clock = pygame.time.Clock()
 
 class Bird(pygame.sprite.Sprite):
@@ -36,19 +39,43 @@ class Bird(pygame.sprite.Sprite):
         self.index = 0
         self.delay = 0
         self.image = self.images[self.index]
-
+        self.velocity = 0
+        self.clicked = False
         self.rect = self.images[self.index].get_rect(center = [x, y])
 
     def update(self):
-        self.delay += 1
-        if self.delay > 5:
-            self.index = 1
-            self.delay = 0
+        if flying == True:
+            self.velocity += 0.5
 
-            if self.index > 2:
-                self.index = 0
+            if self.velocity > 5:
+                self.velocity = 5
+            
+            if self.rect.bottom < 500:
+                self.rect.y += int(self.velocity)
 
-        self.image = self.images[self.index]
+        if gameOver == False:
+            if flying == True:
+                self.delay += 1
+
+                if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
+                    self.velocity = -10
+                    self.clicked = True
+                
+                if pygame.mouse.get_pressed()[0] == 0:
+                    self.clicked = False
+
+                if self.delay > 10:
+                    self.index += 1
+                    self.delay = 0
+
+                    if self.index > 2:
+                        self.index = 0
+
+                self.image = pygame.transform.rotate(self.images[self.index], self.velocity * -2)
+
+        else:
+            self.image = pygame.transform.rotate(self.images[self.index], 180)
+
 
 birdGroup = pygame.sprite.Group()
 bird = Bird(50, HEIGHT/2)
@@ -56,7 +83,7 @@ birdGroup.add(bird)
 
 
 def draw():
-    global groundX
+    global groundX, flying, gameOver
 
     while True:
         clock.tick(60)
@@ -66,14 +93,27 @@ def draw():
         birdGroup.draw(screen)
         birdGroup.update()
 
+        if bird.rect.bottom >= 500:
+            gameOver = True
+            flying = False
+        
+        if bird.rect.top < 0:
+            gameOver = True
+            flying = False
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit(0)
-        groundX -= 1
 
-        if groundX < -100:
-            groundX = 0
+            if event.type == pygame.MOUSEBUTTONDOWN and flying == False and gameOver == False:
+                flying = True
+
+        if gameOver == False and flying == True:
+            groundX -= 1
+
+            if groundX < -100:
+                groundX = 0
 
         screen.blit(ground, (groundX, 500))
 
