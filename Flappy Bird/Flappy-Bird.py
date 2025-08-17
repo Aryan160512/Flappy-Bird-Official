@@ -1,4 +1,4 @@
-import pygame
+import pygame, random
 
 WIDTH = 1200
 HEIGHT = 600
@@ -7,6 +7,7 @@ TITLE = 'Flappy Bird'
 screen = pygame.display.set_caption(TITLE)
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
+
 background = pygame.image.load('Images/background.png')
 background = pygame.transform.scale(background, (WIDTH, HEIGHT + 50))
 
@@ -14,10 +15,16 @@ ground = pygame.image.load('Images/ground.png')
 ground = pygame.transform.scale(ground, (1300, 168))
 
 groundX = 0
-groundSpeed = 2
+scrollSpeed = 2
+
 
 flying = False
 gameOver = False
+
+PIPE_GAP = 150
+PIPE_FREQUENCY = 1500
+lastPipe = pygame.time.get_ticks() - PIPE_FREQUENCY
+pipePassed = False 
 
 clock = pygame.time.Clock()
 
@@ -32,6 +39,8 @@ class Bird(pygame.sprite.Sprite):
 
         bird2 = pygame.image.load('Images/bird2.png')
         self.images.append(bird2)
+
+
 
         bird3 = pygame.image.load('Images/bird3.png')
         self.images.append(bird3)
@@ -74,16 +83,36 @@ class Bird(pygame.sprite.Sprite):
                 self.image = pygame.transform.rotate(self.images[self.index], self.velocity * -2)
 
         else:
-            self.image = pygame.transform.rotate(self.images[self.index], 180)
+            self.image = pygame.transform.rotate(self.images[self.index], -180)
+
+class Pipe(pygame.sprite.Sprite):
+    def __init__(self, x, y, pos):
+        pygame.sprite.Sprite.__init__(self)
+
+        self.image = pygame.image.load('Images/pipe.png')
+        self.rect = self.image.get_rect()
+        
+        if pos == 1:
+            self.image = pygame.transform.flip(self.image, False, True)
+            self.rect.bottomleft = (x, y - PIPE_GAP//2)
+        elif pos == -1:
+            self.rect.topleft = (x, y + PIPE_GAP//2)
+
+    def update(self):
+        self.rect.x -= scrollSpeed
+
+        if self.rect.right < 0:
+            self.kill()
 
 
 birdGroup = pygame.sprite.Group()
 bird = Bird(50, HEIGHT/2)
 birdGroup.add(bird)
 
+pipeGroup = pygame.sprite.Group()
 
 def draw():
-    global groundX, flying, gameOver
+    global groundX, flying, gameOver, lastPipe
 
     while True:
         clock.tick(60)
@@ -91,7 +120,12 @@ def draw():
         screen.blit(background, (0, -50))
 
         birdGroup.draw(screen)
+        pipeGroup.draw(screen)
+
         birdGroup.update()
+        pipeGroup.update()
+
+        #MAKE THE BIRD FALL AS IT TOUCHES THE TOP   
 
         if bird.rect.bottom >= 500:
             gameOver = True
@@ -110,10 +144,23 @@ def draw():
                 flying = True
 
         if gameOver == False and flying == True:
-            groundX -= 1
+            groundX -= scrollSpeed
 
             if groundX < -100:
                 groundX = 0
+
+            currentTime = pygame.time.get_ticks()
+
+            if currentTime - lastPipe > PIPE_FREQUENCY:
+                pipeHeight = random.randint(-100, 100)
+                bottomPipe = Pipe(WIDTH, ((HEIGHT//2) + pipeHeight), -1)
+                topPipe = Pipe(WIDTH, HEIGHT//2 + pipeHeight, 1)
+
+                pipeGroup.add(bottomPipe)
+                pipeGroup.add(topPipe)
+                lastPipe = currentTime
+
+        
 
         screen.blit(ground, (groundX, 500))
 
