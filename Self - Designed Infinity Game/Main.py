@@ -1,4 +1,4 @@
-import pygame
+import pygame, random
 
 pygame.init()
 
@@ -18,6 +18,12 @@ ground = pygame.transform.scale(ground, (3000, 800))
 flying = False
 gameOver = False
 
+# Enemy spawn timing
+ENEMY_FREQUENCY = 3000 
+lastEnemy = pygame.time.get_ticks() - ENEMY_FREQUENCY
+
+clock = pygame.time.Clock()
+
 class Plane(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
@@ -29,13 +35,11 @@ class Plane(pygame.sprite.Sprite):
         self.velocity = 0
         self.clicked = False      
 
-
-
     def update(self):
         global flying, gameOver
 
         if flying:
-            self.velocity += 0.5  
+            self.velocity += 0.5
             if self.velocity > 5:
                 self.velocity = 5
             self.rect.y += int(self.velocity)
@@ -52,24 +56,45 @@ class Plane(pygame.sprite.Sprite):
         else:
             self.image = pygame.transform.rotate(self.original_image, 0)
 
+class EnemyBird(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+
+        self.image = pygame.image.load('Images/bird.png')
+        self.image = pygame.transform.scale(self.image, (80, 60))
+        self.rect = self.image.get_rect(center=(x, y))
+        self.speed = 5
+
+    def update(self):
+        self.rect.x -= self.speed
+        if self.rect.right < 0:
+            self.kill()
+
 planeGroup = pygame.sprite.Group()
 plane = Plane(100, HEIGHT // 2)
 planeGroup.add(plane)
 
+enemyGroup = pygame.sprite.Group()
+
 groundX = 0
 
 def draw():
-    global groundX, gameOver, flying
-
-    clock = pygame.time.Clock()
+    global groundX, gameOver, flying, lastEnemy
 
     while True:
         screen.blit(background, (0, -50))
 
         planeGroup.update()
+        enemyGroup.update()
+
         planeGroup.draw(screen)
+        enemyGroup.draw(screen)
 
         if plane.rect.bottom >= 575 or plane.rect.top <= 0:
+            gameOver = True
+            flying = False
+
+        if pygame.sprite.spritecollide(plane, enemyGroup, False):
             gameOver = True
             flying = False
 
@@ -85,8 +110,17 @@ def draw():
             if groundX < -100:
                 groundX = 0
 
+            currentTime = pygame.time.get_ticks()
+
+            if currentTime - lastEnemy > ENEMY_FREQUENCY:
+
+                enemyY = random.randint(100, 600)
+                enemy = EnemyBird(WIDTH + 100, enemyY)
+                enemyGroup.add(enemy)
+                lastEnemy = currentTime
+
         screen.blit(ground, (groundX, 30))
         pygame.display.update()
-        clock.tick(60)  
+        clock.tick(60)
 
 draw()

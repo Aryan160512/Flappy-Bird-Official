@@ -15,17 +15,19 @@ ground = pygame.image.load('Images/ground.png')
 ground = pygame.transform.scale(ground, (1300, 168))
 
 groundX = 0
-scrollSpeed = 2
+scrollSpeed = 4
 
 
 flying = False
 gameOver = False
 
 PIPE_GAP = 150
-PIPE_FREQUENCY = 1500
-lastPipe = pygame.time.get_ticks() - PIPE_FREQUENCY
-pipePassed = False 
+pipe_frequency = 2000
+lastPipe = pygame.time.get_ticks() - pipe_frequency
+pipePassed = False
 
+score = 0
+font = pygame.font.SysFont('Calibri', 30)
 clock = pygame.time.Clock()
 
 class Bird(pygame.sprite.Sprite):
@@ -94,9 +96,9 @@ class Pipe(pygame.sprite.Sprite):
         
         if pos == 1:
             self.image = pygame.transform.flip(self.image, False, True)
-            self.rect.bottomleft = (x, y - PIPE_GAP//2)
+            self.rect.bottomleft = [x, y - int(PIPE_GAP/2)]
         elif pos == -1:
-            self.rect.topleft = (x, y + PIPE_GAP//2)
+            self.rect.topleft = [x, y + int(PIPE_GAP/2)]
 
     def update(self):
         self.rect.x -= scrollSpeed
@@ -112,7 +114,7 @@ birdGroup.add(bird)
 pipeGroup = pygame.sprite.Group()
 
 def draw():
-    global groundX, flying, gameOver, lastPipe
+    global groundX, flying, gameOver, lastPipe, score
 
     while True:
         clock.tick(60)
@@ -123,11 +125,25 @@ def draw():
         pipeGroup.draw(screen)
 
         birdGroup.update()
-        pipeGroup.update()
+        
+        if len(pipeGroup) > 0:
+            if birdGroup.sprites()[0].rect.left > pipeGroup.sprites()[0].rect.left \
+            and birdGroup.sprites()[0].rect.right < pipeGroup.sprites()[0].rect.right \
+            and pipePassed == False:
+                
+                pipePassed = True
+            
+            if pipePassed == True:
+                if birdGroup.sprites()[0].rect.left > pipeGroup.sprites()[0].rect.right:
+                    score += 10
+                    pipePassed = False
+
+        
 
         #MAKE THE BIRD FALL AS IT TOUCHES THE TOP   
 
         if bird.rect.bottom >= 500:
+    
             gameOver = True
             flying = False
         
@@ -151,16 +167,19 @@ def draw():
 
             currentTime = pygame.time.get_ticks()
 
-            if currentTime - lastPipe > PIPE_FREQUENCY:
+            if currentTime - lastPipe > pipe_frequency:
                 pipeHeight = random.randint(-100, 100)
-                bottomPipe = Pipe(WIDTH, ((HEIGHT//2) + pipeHeight), -1)
-                topPipe = Pipe(WIDTH, HEIGHT//2 + pipeHeight, 1)
+                bottomPipe = Pipe(WIDTH, int(HEIGHT/2) + pipeHeight, -1)
+                topPipe = Pipe(WIDTH, int(HEIGHT/2) + pipeHeight, 1)
 
+                print(currentTime - lastPipe)
                 pipeGroup.add(bottomPipe)
                 pipeGroup.add(topPipe)
                 lastPipe = currentTime
+                
+            pipeGroup.update()
 
-        
+            
 
         screen.blit(ground, (groundX, 500))
 
