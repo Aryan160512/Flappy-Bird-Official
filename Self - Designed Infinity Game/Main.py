@@ -17,14 +17,15 @@ ground = pygame.transform.scale(ground, (3000, 800))
 
 flying = False
 gameOver = False
-
 birdPassed = False
-
+eaglePassed = False
 score = 0
 
 # Enemy spawn timing
-ENEMY_FREQUENCY = 3000 
+ENEMY_FREQUENCY = 5000
+EAGLE_FREQUENCY = 10000
 lastEnemy = pygame.time.get_ticks() - ENEMY_FREQUENCY
+lastEagle = pygame.time.get_ticks() - EAGLE_FREQUENCY
 
 clock = pygame.time.Clock()
 
@@ -34,18 +35,16 @@ class Plane(pygame.sprite.Sprite):
         self.original_image = pygame.image.load('Images/plane.png')
         self.original_image = pygame.transform.scale(self.original_image, (200, 80))
         self.image = self.original_image
-        self.rect = self.image.get_rect()
-        self.rect.center = (x, y)
+        self.rect = self.image.get_rect(center=(x, y))
         self.velocity = 0
-        self.clicked = False      
+        self.clicked = False
 
     def update(self):
         global flying, gameOver
 
         if flying:
             self.velocity += 0.5
-            if self.velocity > 5:
-                self.velocity = 5
+            self.velocity = min(self.velocity, 5)
             self.rect.y += int(self.velocity)
 
         if not gameOver:
@@ -63,15 +62,27 @@ class Plane(pygame.sprite.Sprite):
 class EnemyBird(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
-
         self.image = pygame.image.load('Images/bird.png')
         self.image = pygame.transform.scale(self.image, (80, 60))
         self.rect = self.image.get_rect(center=(x, y))
         self.speed = 5
 
     def update(self):
-        if gameOver == False:
+        if not gameOver:
+            self.rect.x -= self.speed
+            if self.rect.right < 0:
+                self.kill()
 
+class EnemyEagle(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.image.load('Images/eagle.png')
+        self.image = pygame.transform.scale(self.image, (160, 120))
+        self.rect = self.image.get_rect(center=(x, y))
+        self.speed = 6
+
+    def update(self):
+        if not gameOver:
             self.rect.x -= self.speed
             if self.rect.right < 0:
                 self.kill()
@@ -81,26 +92,28 @@ plane = Plane(100, HEIGHT // 2)
 planeGroup.add(plane)
 
 enemyGroup = pygame.sprite.Group()
+eagleGroup = pygame.sprite.Group()
 
 groundX = 0
 
 def draw():
-    global groundX, gameOver, flying, lastEnemy, score, birdPassed
+    global groundX, gameOver, flying, lastEnemy, lastEagle, score, birdPassed, eaglePassed, plane
 
     while True:
         screen.blit(background, (0, -50))
 
         pygame.font.init()
-
         font = pygame.font.SysFont('Calibri', 30)
         text = font.render(f'Score: {int(score)}', True, (0, 0, 0))
         screen.blit(text, (50, 50))
 
         planeGroup.update()
         enemyGroup.update()
+        eagleGroup.update()
 
         planeGroup.draw(screen)
         enemyGroup.draw(screen)
+        eagleGroup.draw(screen)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -117,32 +130,45 @@ def draw():
             currentTime = pygame.time.get_ticks()
 
             if currentTime - lastEnemy > ENEMY_FREQUENCY:
-
                 enemyY = random.randint(100, 600)
                 enemy = EnemyBird(WIDTH + 100, enemyY)
                 enemyGroup.add(enemy)
                 lastEnemy = currentTime
 
-            enemyGroup.update()
+            if currentTime - lastEagle > EAGLE_FREQUENCY:
+                eagleY = random.randint(100, 600)
+                eagle = EnemyEagle(WIDTH + 200, eagleY)
+                eagleGroup.add(eagle)
+                lastEagle = currentTime
 
-            if len(enemyGroup): 
-                if planeGroup.sprites()[0].rect.right > enemyGroup.sprites()[0].rect.left and planeGroup.sprites()[0].rect.left < enemyGroup.sprites()[0].rect.right and birdPassed == False :
+            if len(enemyGroup):
+                bird = enemyGroup.sprites()[0]
+                plane = planeGroup.sprites()[0]
+
+                if plane.rect.right > bird.rect.left and plane.rect.left < bird.rect.right and not birdPassed:
                     birdPassed = True
-
-                if birdPassed == True:
+                if birdPassed:
                     score += 0.1
-
-                if planeGroup.sprites()[0].rect.left > enemyGroup.sprites()[0].rect.right:
+                if plane.rect.left > bird.rect.right:
                     birdPassed = False
 
+            if len(eagleGroup):
+                eagle = eagleGroup.sprites()[0]
+                plane = planeGroup.sprites()[0]
 
+                if plane.rect.left > eagle.rect.right and not eaglePassed:
+                    score += 10
+                    eaglePassed = True
+                if plane.rect.left < eagle.rect.right:
+                    eaglePassed = False
 
-        
-        if plane.rect.bottom >= 575 or plane.rect.top <= 50 or pygame.sprite.groupcollide(planeGroup, enemyGroup, False, False):
+        if (plane.rect.bottom >= 575 or plane.rect.top <= 0 or
+            pygame.sprite.groupcollide(planeGroup, enemyGroup, False, False) or
+            pygame.sprite.groupcollide(planeGroup, eagleGroup, False, False)):
             gameOver = True
             flying = False
 
-        screen.blit(ground, (groundX, 30))
+        screen.blit(ground, (groundX, 100))
         pygame.display.update()
         clock.tick(60)
 
