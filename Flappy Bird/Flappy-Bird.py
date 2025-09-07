@@ -22,12 +22,12 @@ flying = False
 gameOver = False
 
 PIPE_GAP = 150
-pipe_frequency = 2000
-lastPipe = pygame.time.get_ticks() - pipe_frequency
+PIPE_FREQUENCY = 2000
+lastPipe = pygame.time.get_ticks() - PIPE_FREQUENCY
 pipePassed = False
 
 score = 0
-font = pygame.font.SysFont('Calibri', 30)
+
 clock = pygame.time.Clock()
 
 class Bird(pygame.sprite.Sprite):
@@ -113,13 +113,56 @@ birdGroup.add(bird)
 
 pipeGroup = pygame.sprite.Group()
 
+pygame.font.init()
+font = pygame.font.SysFont('Calibri', 30)
+
+def gameEnd():
+    global gameOver, flying
+
+    gameOver = True
+    flying = False
+    screen.fill('white')
+    message1 = font.render('GAME OVER', True, (255, 0, 0))
+    message2 = font.render('Press SPACEBAR to restart the game', True, (255, 0, 0))
+    screen.blit(message1, (int(WIDTH / 2 - 80), int(HEIGHT / 2 - 100)))
+    screen.blit(message2, (int(WIDTH/2 - 200), int(HEIGHT / 2)))
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_r]:
+        reset()
+        
+def reset():
+    global gameOver, flying, score
+
+    gameOver = False
+    flying = False
+    score = 0
+
 def draw():
-    global groundX, flying, gameOver, lastPipe, score
+    global groundX, flying, gameOver, lastPipe, pipePassed, score, PIPE_FREQUENCY
 
     while True:
         clock.tick(60)
         
-        screen.blit(background, (0, -50))
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit(0)
+
+            if event.type == pygame.MOUSEBUTTONDOWN and flying == False and gameOver == False:
+                flying = True
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    if gameOver == True:
+                        reset()
+        
+        if gameOver == False:
+
+            screen.blit(background, (0, -50))
+            screen.blit(ground, (groundX, 500))
+
+        scoreText = font.render(f'Score: {score}', True, (0, 0, 0))
+        screen.blit(scoreText, (50, 50))
 
         birdGroup.draw(screen)
         pipeGroup.draw(screen)
@@ -138,26 +181,8 @@ def draw():
                     score += 10
                     pipePassed = False
 
-        
-
-        #MAKE THE BIRD FALL AS IT TOUCHES THE TOP   
-
-        if bird.rect.bottom >= 500:
-    
-            gameOver = True
-            flying = False
-        
-        if bird.rect.top < 0:
-            gameOver = True
-            flying = False
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                exit(0)
-
-            if event.type == pygame.MOUSEBUTTONDOWN and flying == False and gameOver == False:
-                flying = True
+        if bird.rect.bottom >= 500 or bird.rect.top < 0:
+            gameEnd()
 
         if gameOver == False and flying == True:
             groundX -= scrollSpeed
@@ -167,21 +192,21 @@ def draw():
 
             currentTime = pygame.time.get_ticks()
 
-            if currentTime - lastPipe > pipe_frequency:
+            if currentTime - lastPipe > PIPE_FREQUENCY:
                 pipeHeight = random.randint(-100, 100)
                 bottomPipe = Pipe(WIDTH, int(HEIGHT/2) + pipeHeight, -1)
                 topPipe = Pipe(WIDTH, int(HEIGHT/2) + pipeHeight, 1)
 
-                print(currentTime - lastPipe)
                 pipeGroup.add(bottomPipe)
                 pipeGroup.add(topPipe)
                 lastPipe = currentTime
+
+                #lastPipe = pygame.time.get_ticks()
                 
             pipeGroup.update()
 
-            
-
-        screen.blit(ground, (groundX, 500))
+        if pygame.sprite.groupcollide(birdGroup, pipeGroup, False, False):
+            gameEnd()
 
         pygame.display.update()
 draw()
